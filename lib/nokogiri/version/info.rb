@@ -231,4 +231,5 @@ module Nokogiri
 
   # Detailed version info about Nokogiri and the installed extension dependencies.
   VERSION_INFO = VersionInfo.instance.to_hash
+  VersionInfo.instance.freeze
 end

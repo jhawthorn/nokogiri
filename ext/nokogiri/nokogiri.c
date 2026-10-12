@@ -183,6 +183,11 @@ libxml_uses_ruby_memory_management:
 void
 Init_nokogiri(void)
 {
+  /* TEMPORARY (ractor repro): allow calling into this extension from non-main
+   * Ractors so the xmlSetExternalEntityLoader race can be demonstrated.
+   * Do NOT ship this until the hazards in RACTOR_SAFETY.md are fixed. */
+  rb_ext_ractor_safe(true);
+
   mNokogiri         = rb_define_module("Nokogiri");
   mNokogiriGumbo    = rb_define_module_under(mNokogiri, "Gumbo");
   mNokogiriHtml4    = rb_define_module_under(mNokogiri, "HTML4");
@@ -196,6 +201,13 @@ Init_nokogiri(void)
   set_libxml_memory_management(); /* must be before any function calls that might invoke xmlInitParser() */
   xmlInitParser();
   exsltRegisterAll();
+
+  /* libxml2 and libxslt initialize their built-in type tables and extensions lazily, on first use,
+   * with an unlocked "if (!initialized)" check. Initialize them eagerly so that the first use can't
+   * happen in two Ractors at once. */
+  xmlSchemaInitTypes();
+  xmlRelaxNGInitTypes();
+  xsltInit();
 
   rb_const_set(mNokogiri, rb_intern("LIBXML_COMPILED_VERSION"), NOKOGIRI_STR_NEW2(LIBXML_DOTTED_VERSION));
   rb_const_set(mNokogiri, rb_intern("LIBXML_LOADED_VERSION"), NOKOGIRI_STR_NEW2(xmlParserVersion));
